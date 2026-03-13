@@ -9,7 +9,7 @@
   "private": true,
   "scripts": {
     "start": "ts-node index.ts",
-    "start:once": "ts-node -e \"require('dotenv/config'); require('./src/scheduler').runAnalysis().catch(console.error)\"",
+    "start:once": "ts-node run-once.ts",
     "build": "tsc",
     "start:prod": "node dist/index.js"
   },

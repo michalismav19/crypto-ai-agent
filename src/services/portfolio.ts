@@ -26,8 +26,17 @@ export async function promptPortfolio(): Promise<Portfolio> {
   const cashAnswer = await ask(rl, '\n  Available cash to invest (EUR): ');
   const availableCash = parseFloat(cashAnswer.trim()) || 0;
 
+  let horizon: 'short' | 'long' = 'short';
+  while (true) {
+    const horizonAnswer = await ask(rl, '\n  Investment horizon — short or long? (s/l): ');
+    const h = horizonAnswer.trim().toLowerCase();
+    if (h === 's' || h === 'short') { horizon = 'short'; break; }
+    if (h === 'l' || h === 'long')  { horizon = 'long';  break; }
+    console.log('  Please type "s" for short term or "l" for long term.');
+  }
+
   rl.close();
   console.log('─────────────────────────────────────────────────────────────\n');
 
-  return { holdings, availableCash };
+  return { holdings, availableCash, horizon };
 }

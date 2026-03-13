@@ -66,4 +66,6 @@ export interface Portfolio {
   holdings: Partial<Record<string, number>>;
   /** available cash to invest, in EUR */
   availableCash: number;
+  /** investment horizon chosen by the user */
+  horizon: 'short' | 'long';
 }

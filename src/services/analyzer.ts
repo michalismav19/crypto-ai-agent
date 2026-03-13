@@ -125,9 +125,23 @@ Based on the signals below and the portfolio above, add an **8. Personalized Act
 - **HOLD signal**: Confirm to hold current position or adjust stop-loss if needed.`;
   }
 
+  const horizonLabel = portfolio?.horizon === 'long' ? 'LONG-TERM' : 'SHORT-TERM';
+  const horizonContext = portfolio?.horizon === 'long'
+    ? `The user is a LONG-TERM investor (weeks to months).
+- Weight 30-day, 60-day, and 90-day trends heavily.
+- Ignore intraday noise; focus on macro trend, accumulation patterns, and fundamental strength.
+- Stop-loss and take-profit targets should reflect multi-week price targets.`
+    : `The user is a SHORT-TERM trader (hours to a few days).
+- Weight 1-hour and 24-hour price action heavily.
+- Focus on momentum, volume confirmation, and short-term support/resistance.
+- Stop-loss and take-profit targets should be tight and reflect near-term price action.`;
+
   const prompt = `You are a senior cryptocurrency analyst with 10+ years of hands-on experience in technical analysis, on-chain metrics, and macro crypto market cycles.
 
 Today's date: ${today}
+Investment horizon: **${horizonLabel}**
+
+${horizonContext}
 
 Analyze the following market data and produce a clear, actionable report for each coin.
 
@@ -137,20 +151,20 @@ ${portfolioSection}
 
 For EACH of the four coins (BTC, ETH, XRP, SOL), provide:
 
-1. **SIGNAL**: BUY 🟢 | SELL 🔴 | HOLD 🟡  (be decisive — pick one)
+1. **SIGNAL**: BUY 🟢 | SELL 🔴 | HOLD 🟡  (be decisive — pick one, aligned with the ${horizonLabel} horizon)
 2. **Confidence**: High / Medium / Low
 3. **Risk Level**: High / Medium / Low
-4. **Key Technical Observations**:
+4. **Key Technical Observations** (${horizonLabel} focus):
    - Trend direction (short-term & mid-term)
    - Momentum (accelerating / decelerating / reversing)
    - Volume analysis (confirming or diverging)
    - Notable support / resistance levels (infer from price action if no candles)
-5. **Reasoning**: 2-4 sentences explaining why you chose this signal
-6. **Stop-Loss suggestion**: price level to exit if wrong (in USD and EUR)
-7. **Target / Take-Profit**: price level if signal plays out (in USD and EUR)${portfolio ? "\n8. **Personalized Action**: specific buy/sell recommendation based on your portfolio (see above)" : ""}
+5. **Reasoning**: 2-4 sentences explaining why you chose this signal for a ${horizonLabel} perspective
+6. **Stop-Loss suggestion**: price level to exit if wrong (in USD and EUR, ${horizonLabel} appropriate)
+7. **Target / Take-Profit**: price level if signal plays out (in USD and EUR, ${horizonLabel} appropriate)${portfolio ? "\n8. **Personalized Action**: specific buy/sell recommendation based on your portfolio (see above)" : ""}
 
 After the individual coin sections, add a brief **Market Summary** (3-5 sentences) covering:
-- Overall market sentiment
+- Overall market sentiment from a ${horizonLabel} perspective
 - Any correlations or divergences between the four coins
 - Top risk to watch
 

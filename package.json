@@ -1,13 +1,31 @@
 {
   "name": "crypto-ai-agent",
   "version": "1.0.0",
-  "description": "Repo for crypto analysis",
-  "main": "index.js",
+  "description": "Automated crypto analysis with Claude AI — hourly BUY/SELL signals via email",
+  "main": "dist/index.js",
   "repository": "https://github.com/michalismav19/crypto-ai-agent.git",
   "author": "Michalis Mavromatakis <m.mavromatakis@flexcar.gr>",
   "license": "MIT",
   "private": true,
   "scripts": {
-    "run": "node index.js"
+    "start": "ts-node index.ts",
+    "start:once": "ts-node -e \"require('dotenv/config'); require('./src/scheduler').runAnalysis().catch(console.error)\"",
+    "build": "tsc",
+    "start:prod": "node dist/index.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
+    "axios": "^1.7.9",
+    "dotenv": "^16.4.7",
+    "node-cron": "^3.0.3",
+    "nodemailer": "^6.9.16"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.161",
+    "@types/node": "^25.5.0",
+    "@types/node-cron": "^3.0.11",
+    "@types/nodemailer": "^7.0.11",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
   }
 }

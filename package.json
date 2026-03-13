@@ -1,0 +1,13 @@
+{
+  "name": "crypto-ai-agent",
+  "version": "1.0.0",
+  "description": "Repo for crypto analysis",
+  "main": "index.js",
+  "repository": "https://github.com/michalismav19/crypto-ai-agent.git",
+  "author": "Michalis Mavromatakis <m.mavromatakis@flexcar.gr>",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "run": "node index.js"
+  }
+}

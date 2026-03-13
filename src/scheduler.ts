@@ -2,6 +2,7 @@ import cron from "node-cron";
 import { getCryptoData } from "./services/coinMarketCap";
 import { analyzeMarket } from "./services/analyzer";
 import { sendNotification } from "./services/notifier";
+import type { Portfolio } from "./types";
 
 const REQUIRED_ENV_VARS = [
   "COIN_MAKRET_CAP_API_KEY",
@@ -20,14 +21,14 @@ const EMAIL_ENV_VARS = [
  * Single analysis run: fetch market data → analyze with Claude → send email.
  * Exported so it can be called by Lambda or as a one-off run.
  */
-export async function runAnalysis(): Promise<void> {
+export async function runAnalysis(portfolio?: Portfolio): Promise<void> {
   const runId = new Date().toISOString();
   console.log(`\n[${runId}] ── Starting crypto analysis run ──`);
 
   try {
-    const { quotes, ohlcvData } = await getCryptoData();
+    const { quotes, ohlcvData, eurRate } = await getCryptoData();
     console.log("[Scheduler] Market data fetched");
-    const analysis = await analyzeMarket(quotes, ohlcvData);
+    const analysis = await analyzeMarket(quotes, ohlcvData, eurRate, portfolio);
     console.log("[Scheduler] Analysis complete");
     console.log("\n── Analysis Result ──\n");
     console.log(analysis);
@@ -56,7 +57,7 @@ export async function runAnalysis(): Promise<void> {
 /**
  * Validate env vars, start the hourly cron, and run once immediately on boot.
  */
-export function startScheduler(): void {
+export function startScheduler(portfolio?: Portfolio): void {
   const missing = REQUIRED_ENV_VARS.filter((k) => !process.env[k]);
   if (missing.length > 0) {
     console.error(
@@ -66,9 +67,9 @@ export function startScheduler(): void {
   }
 
   // Fire at minute 0 of every hour, UTC
-  cron.schedule("0 * * * *", () => void runAnalysis(), { timezone: "UTC" });
+  cron.schedule("0 * * * *", () => void runAnalysis(portfolio), { timezone: "UTC" });
   console.log("[Scheduler] Started — will run every hour at :00 UTC");
 
   // Run immediately so you don't wait an hour for the first signal
-  void runAnalysis();
+  void runAnalysis(portfolio);
 }

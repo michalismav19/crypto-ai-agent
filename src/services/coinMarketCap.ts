@@ -54,7 +54,24 @@ async function getOHLCV(symbol: CryptoSymbol): Promise<CMCOHLCVData | null> {
 }
 
 /**
- * Main data fetch — returns quotes + OHLCV (if available on the current plan).
+ * Fetch the current USD → EUR exchange rate from the free Frankfurter API.
+ * Falls back to 0.92 if the request fails.
+ */
+async function getEurRate(): Promise<number> {
+  try {
+    const res = await axios.get<{ rates: { EUR: number } }>(
+      'https://api.frankfurter.app/latest?from=USD&to=EUR',
+    );
+    return res.data.rates.EUR;
+  } catch {
+    console.warn('[FX] Could not fetch EUR rate — falling back to 0.92');
+    return 0.92;
+  }
+}
+
+/**
+ * Main data fetch — returns quotes + OHLCV (if available on the current plan)
+ * plus the live USD/EUR exchange rate.
  */
 export async function getCryptoData(): Promise<CryptoMarketData> {
   console.log('[CoinMarketCap] Fetching quotes...');
@@ -66,5 +83,9 @@ export async function getCryptoData(): Promise<CryptoMarketData> {
     ohlcvData[symbol] = await getOHLCV(symbol);
   }
 
-  return { quotes, ohlcvData };
+  console.log('[FX] Fetching EUR/USD rate...');
+  const eurRate = await getEurRate();
+  console.log(`[FX] 1 USD = ${eurRate.toFixed(4)} EUR`);
+
+  return { quotes, ohlcvData, eurRate };
 }

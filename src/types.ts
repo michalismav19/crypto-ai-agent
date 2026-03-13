@@ -58,4 +58,12 @@ export type Signal = 'BUY' | 'SELL' | 'HOLD';
 export interface CryptoMarketData {
   quotes: CMCQuotesMap;
   ohlcvData: OHLCVMap;
+  eurRate: number; // 1 USD = eurRate EUR
+}
+
+export interface Portfolio {
+  /** symbol → amount held (e.g. { BTC: 0.5, ETH: 2 }) */
+  holdings: Partial<Record<string, number>>;
+  /** available cash to invest, in EUR */
+  availableCash: number;
 }

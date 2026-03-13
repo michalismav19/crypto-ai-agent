@@ -4,6 +4,7 @@ import type {
   CMCOHLCVData,
   CMCQuotesMap,
   OHLCVMap,
+  Portfolio,
 } from "../types";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -42,13 +43,15 @@ function buildCoinSection(
   symbol: string,
   coinData: CMCCoinData,
   ohlcv: CMCOHLCVData | null,
+  eurRate: number,
 ): string {
   const q = coinData.quote.USD;
   const priceDecimals = symbol === "XRP" ? 4 : 2;
+  const priceEur = q.price * eurRate;
 
   const lines: string[] = [
     `=== ${symbol} ===`,
-    `Current Price : $${q.price.toFixed(priceDecimals)}`,
+    `Current Price : $${q.price.toFixed(priceDecimals)} / €${priceEur.toFixed(priceDecimals)}`,
     `Change 1h     : ${pct(q.percent_change_1h)}`,
     `Change 24h    : ${pct(q.percent_change_24h)}`,
     `Change 7d     : ${pct(q.percent_change_7d)}`,
@@ -81,13 +84,46 @@ function buildCoinSection(
 export async function analyzeMarket(
   quotes: CMCQuotesMap,
   ohlcvData: OHLCVMap,
+  eurRate: number,
+  portfolio?: Portfolio,
 ): Promise<string> {
   const coinSections = Object.entries(quotes)
     .map(([symbol, coinData]) =>
-      buildCoinSection(symbol, coinData, ohlcvData[symbol] ?? null),
+      buildCoinSection(symbol, coinData, ohlcvData[symbol] ?? null, eurRate),
     )
     .join("\n\n");
   const today = new Date().toISOString().split("T")[0];
+
+  // Build portfolio context block if provided
+  let portfolioSection = "";
+  if (portfolio) {
+    const holdingLines = Object.entries(quotes)
+      .map(([symbol, coinData]) => {
+        const amount = portfolio.holdings[symbol] ?? 0;
+        const priceUsd = coinData.quote.USD.price;
+        const valueUsd = amount * priceUsd;
+        const valueEur = valueUsd * eurRate;
+        return `  ${symbol}: ${amount} units  ($${valueUsd.toFixed(2)} / €${valueEur.toFixed(2)})`;
+      })
+      .join("\n");
+
+    portfolioSection = `
+---
+
+## YOUR PORTFOLIO
+
+Current holdings:
+${holdingLines}
+
+Available cash to invest: €${portfolio.availableCash.toFixed(2)}
+
+---
+
+Based on the signals below and the portfolio above, add an **8. Personalized Action** section for each coin:
+- **BUY signal**: Specify exactly how much of the €${portfolio.availableCash.toFixed(2)} available cash to deploy for this coin (in EUR and approximate units at current price). Distribute across all BUY signals proportionally to confidence.
+- **SELL signal**: Specify how many units of the held amount to sell and their approximate value in EUR.
+- **HOLD signal**: Confirm to hold current position or adjust stop-loss if needed.`;
+  }
 
   const prompt = `You are a senior cryptocurrency analyst with 10+ years of hands-on experience in technical analysis, on-chain metrics, and macro crypto market cycles.
 
@@ -96,7 +132,7 @@ Today's date: ${today}
 Analyze the following market data and produce a clear, actionable report for each coin.
 
 ${coinSections}
-
+${portfolioSection}
 ---
 
 For EACH of the four coins (BTC, ETH, XRP, SOL), provide:
@@ -110,8 +146,8 @@ For EACH of the four coins (BTC, ETH, XRP, SOL), provide:
    - Volume analysis (confirming or diverging)
    - Notable support / resistance levels (infer from price action if no candles)
 5. **Reasoning**: 2-4 sentences explaining why you chose this signal
-6. **Stop-Loss suggestion**: price level to exit if wrong
-7. **Target / Take-Profit**: price level if signal plays out
+6. **Stop-Loss suggestion**: price level to exit if wrong (in USD and EUR)
+7. **Target / Take-Profit**: price level if signal plays out (in USD and EUR)${portfolio ? "\n8. **Personalized Action**: specific buy/sell recommendation based on your portfolio (see above)" : ""}
 
 After the individual coin sections, add a brief **Market Summary** (3-5 sentences) covering:
 - Overall market sentiment

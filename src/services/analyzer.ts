@@ -152,16 +152,21 @@ ${portfolioSection}
 For EACH of the four coins (BTC, ETH, XRP, SOL), provide:
 
 1. **SIGNAL**: BUY 🟢 | SELL 🔴 | HOLD 🟡  (be decisive — pick one, aligned with the ${horizonLabel} horizon)
-2. **Confidence**: High / Medium / Low
-3. **Risk Level**: High / Medium / Low
-4. **Key Technical Observations** (${horizonLabel} focus):
+2. **Timing** ⏰: When exactly to act — choose the most appropriate:
+   - BUY NOW / BUY TODAY / BUY TOMORROW / WAIT FOR PULLBACK THEN BUY (specify price level)
+   - SELL NOW / SELL TODAY / SELL TOMORROW / WAIT FOR BOUNCE THEN SELL (specify price level)
+   - HOLD — monitor until [condition]
+   Give a concrete date or price trigger, not just a vague suggestion.
+3. **Confidence**: High / Medium / Low
+4. **Risk Level**: High / Medium / Low
+5. **Key Technical Observations** (${horizonLabel} focus):
    - Trend direction (short-term & mid-term)
    - Momentum (accelerating / decelerating / reversing)
    - Volume analysis (confirming or diverging)
    - Notable support / resistance levels (infer from price action if no candles)
-5. **Reasoning**: 2-4 sentences explaining why you chose this signal for a ${horizonLabel} perspective
-6. **Stop-Loss suggestion**: price level to exit if wrong (in USD and EUR, ${horizonLabel} appropriate)
-7. **Target / Take-Profit**: price level if signal plays out (in USD and EUR, ${horizonLabel} appropriate)${portfolio ? "\n8. **Personalized Action**: specific buy/sell recommendation based on your portfolio (see above)" : ""}
+6. **Reasoning**: 2-4 sentences explaining why you chose this signal and timing for a ${horizonLabel} perspective
+7. **Stop-Loss suggestion**: price level to exit if wrong (in USD and EUR, ${horizonLabel} appropriate)
+8. **Target / Take-Profit**: price level if signal plays out (in USD and EUR, ${horizonLabel} appropriate)${portfolio ? "\n9. **Personalized Action**: specific buy/sell recommendation based on your portfolio (see above)" : ""}
 
 After the individual coin sections, add a brief **Market Summary** (3-5 sentences) covering:
 - Overall market sentiment from a ${horizonLabel} perspective

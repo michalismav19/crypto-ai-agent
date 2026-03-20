@@ -18,13 +18,11 @@
     "@aws-sdk/client-ses": "^3.1013.0",
     "axios": "^1.7.9",
     "dotenv": "^16.4.7",
-    "node-cron": "^3.0.3",
     "nodemailer": "^6.9.16"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.161",
     "@types/node": "^25.5.0",
-    "@types/node-cron": "^3.0.11",
     "@types/nodemailer": "^7.0.11",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"

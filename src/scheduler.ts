@@ -1,21 +1,9 @@
-import cron from "node-cron";
 import { getCryptoData } from "./services/coinMarketCap";
 import { analyzeMarket } from "./services/analyzer";
 import { sendNotification } from "./services/notifier";
 import type { Portfolio } from "./types";
 
-const REQUIRED_ENV_VARS = [
-  "COIN_MAKRET_CAP_API_KEY",
-  "ANTHROPIC_API_KEY",
-] as const;
-
-const EMAIL_ENV_VARS = [
-  "EMAIL_FROM",
-  "EMAIL_TO",
-  "EMAIL_SMTP_HOST",
-  "EMAIL_SMTP_USER",
-  "EMAIL_SMTP_PASS",
-] as const;
+const EMAIL_ENV_VARS = ["EMAIL_FROM", "EMAIL_TO"] as const;
 
 /**
  * Single analysis run: fetch market data → analyze with Claude → send email.
@@ -50,28 +38,7 @@ export async function runAnalysis(portfolio?: Portfolio): Promise<void> {
       console.error(`  HTTP status: ${(err as any).status}`);
     if (err instanceof Error && "error" in err)
       console.error(`  API error:`, (err as any).error);
-    // Don't rethrow — keep the scheduler alive even if one run fails.
+    // Rethrow so Lambda marks the invocation as failed
+    throw err;
   }
-}
-
-/**
- * Validate env vars, start the hourly cron, and run once immediately on boot.
- */
-export function startScheduler(portfolio?: Portfolio): void {
-  const missing = REQUIRED_ENV_VARS.filter((k) => !process.env[k]);
-  if (missing.length > 0) {
-    console.error(
-      `[Scheduler] Missing required env vars: ${missing.join(", ")}`,
-    );
-    process.exit(1);
-  }
-
-  // Fire every day at 12pm, UTC
-  cron.schedule("0 12 * * *", () => void runAnalysis(portfolio), {
-    timezone: "UTC",
-  });
-  console.log("[Scheduler] Started — will run every hour at :00 UTC");
-
-  // Run immediately so you don't wait an hour for the first signal
-  void runAnalysis(portfolio);
 }

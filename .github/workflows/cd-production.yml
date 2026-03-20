@@ -38,23 +38,7 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Deploy to Lambda
-        env:
-          LAMBDA_ROLE_ARN: ${{ secrets.LAMBDA_ROLE_ARN }}
         run: |
-          ROLE=$(echo "$LAMBDA_ROLE_ARN" | xargs)
-          if aws lambda get-function --function-name crypto-ai-agent > /dev/null 2>&1; then
-            echo "Function exists — updating code..."
-            aws lambda update-function-code \
-              --function-name crypto-ai-agent \
-              --zip-file fileb://lambda.zip
-          else
-            echo "Function not found — creating..."
-            aws lambda create-function \
-              --function-name crypto-ai-agent \
-              --runtime nodejs20.x \
-              --role "$ROLE" \
-              --handler dist/lambda.handler \
-              --timeout 180 \
-              --memory-size 256 \
-              --zip-file fileb://lambda.zip
-          fi
+          aws lambda update-function-code \
+            --function-name crypto-ai-agent \
+            --zip-file fileb://lambda.zip

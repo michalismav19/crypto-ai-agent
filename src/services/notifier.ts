@@ -1,4 +1,5 @@
 import nodemailer, { Transporter } from 'nodemailer';
+import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
 
 function createTransporter(): Transporter {
   return nodemailer.createTransport({
@@ -61,19 +62,50 @@ function analysisToHtml(analysis: string): string {
 }
 
 /**
- * Send the analysis report via email.
+ * Send via AWS SES SDK — used in Lambda (no SMTP credentials needed, uses IAM role).
  */
-export async function sendNotification(analysis: string): Promise<void> {
-  const transporter = createTransporter();
-  const subject = `🤖 Crypto Signal [${new Date().toUTCString()}] — BTC/ETH/XRP/SOL`;
+async function sendViaSES(subject: string, text: string, html: string): Promise<void> {
+  const client = new SESClient({});
+  await client.send(new SendEmailCommand({
+    Source: process.env.EMAIL_FROM,
+    Destination: { ToAddresses: [process.env.EMAIL_TO!] },
+    Message: {
+      Subject: { Data: subject, Charset: 'UTF-8' },
+      Body: {
+        Text: { Data: text, Charset: 'UTF-8' },
+        Html: { Data: html, Charset: 'UTF-8' },
+      },
+    },
+  }));
+  console.log(`[Notifier] Email sent via SES to ${process.env.EMAIL_TO}`);
+}
 
+/**
+ * Send via SMTP (nodemailer) — used for local development.
+ */
+async function sendViaSMTP(subject: string, text: string, html: string): Promise<void> {
+  const transporter = createTransporter();
   await transporter.sendMail({
     from: `"Crypto AI Agent" <${process.env.EMAIL_FROM}>`,
     to: process.env.EMAIL_TO,
     subject,
-    text: analysis,
-    html: analysisToHtml(analysis),
+    text,
+    html,
   });
+  console.log(`[Notifier] Email sent via SMTP to ${process.env.EMAIL_TO}`);
+}
 
-  console.log(`[Notifier] Email sent to ${process.env.EMAIL_TO}`);
+/**
+ * Send the analysis report via email.
+ * Uses SES SDK when EMAIL_SMTP_HOST is not set (Lambda), SMTP otherwise (local dev).
+ */
+export async function sendNotification(analysis: string): Promise<void> {
+  const subject = `Crypto Signal [${new Date().toUTCString()}] — BTC/ETH/XRP/SOL`;
+  const html = analysisToHtml(analysis);
+
+  if (process.env.EMAIL_SMTP_HOST) {
+    await sendViaSMTP(subject, analysis, html);
+  } else {
+    await sendViaSES(subject, analysis, html);
+  }
 }

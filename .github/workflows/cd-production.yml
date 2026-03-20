@@ -39,6 +39,19 @@ jobs:
 
       - name: Deploy to Lambda
         run: |
-          aws lambda update-function-code \
-            --function-name crypto-ai-agent \
-            --zip-file fileb://lambda.zip
+          if aws lambda get-function --function-name crypto-ai-agent > /dev/null 2>&1; then
+            echo "Function exists — updating code..."
+            aws lambda update-function-code \
+              --function-name crypto-ai-agent \
+              --zip-file fileb://lambda.zip
+          else
+            echo "Function not found — creating..."
+            aws lambda create-function \
+              --function-name crypto-ai-agent \
+              --runtime nodejs20.x \
+              --role ${{ secrets.LAMBDA_ROLE_ARN }} \
+              --handler dist/lambda.handler \
+              --timeout 180 \
+              --memory-size 256 \
+              --zip-file fileb://lambda.zip
+          fi

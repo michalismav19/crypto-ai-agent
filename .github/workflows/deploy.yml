@@ -18,13 +18,13 @@ jobs:
           node-version: 20
 
       - name: Install all dependencies
-        run: npm ci
+        run: yarn install --frozen-lockfile
 
       - name: Build TypeScript
-        run: npm run build
+        run: yarn build
 
       - name: Install production dependencies only
-        run: npm ci --omit=dev
+        run: yarn install --frozen-lockfile --production
 
       - name: Create deployment zip
         run: zip -r lambda.zip dist/ node_modules/

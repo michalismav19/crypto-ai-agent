@@ -26,9 +26,9 @@ export async function runAnalysis(portfolio?: Portfolio): Promise<void> {
   console.log(`\n[${runId}] ── Starting crypto analysis run ──`);
 
   try {
-    const { quotes, ohlcvData, eurRate } = await getCryptoData();
+    const { quotes, ohlcvData, eurRate } = await getCryptoData(); // call coinMarketCap API
     console.log("[Scheduler] Market data fetched");
-    const analysis = await analyzeMarket(quotes, ohlcvData, eurRate, portfolio);
+    const analysis = await analyzeMarket(quotes, ohlcvData, eurRate, portfolio); // call Claude API
     console.log("[Scheduler] Analysis complete");
     console.log("\n── Analysis Result ──\n");
     console.log(analysis);
@@ -36,7 +36,7 @@ export async function runAnalysis(portfolio?: Portfolio): Promise<void> {
 
     const emailReady = EMAIL_ENV_VARS.every((k) => !!process.env[k]);
     if (emailReady) {
-      await sendNotification(analysis);
+      await sendNotification(analysis); // send email notification
     } else {
       console.log(
         "[Notifier] Email env vars not set — skipping email notification.",
@@ -66,8 +66,10 @@ export function startScheduler(portfolio?: Portfolio): void {
     process.exit(1);
   }
 
-  // Fire at minute 0 of every hour, UTC
-  cron.schedule("0 * * * *", () => void runAnalysis(portfolio), { timezone: "UTC" });
+  // Fire every day at 12pm, UTC
+  cron.schedule("0 12 * * *", () => void runAnalysis(portfolio), {
+    timezone: "UTC",
+  });
   console.log("[Scheduler] Started — will run every hour at :00 UTC");
 
   // Run immediately so you don't wait an hour for the first signal

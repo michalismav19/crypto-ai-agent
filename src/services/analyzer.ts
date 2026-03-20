@@ -119,10 +119,12 @@ Available cash to invest: €${portfolio.availableCash.toFixed(2)}
 
 ---
 
-Based on the signals below and the portfolio above, add an **8. Personalized Action** section for each coin:
-- **BUY signal**: Specify exactly how much of the €${portfolio.availableCash.toFixed(2)} available cash to deploy for this coin (in EUR and approximate units at current price). Distribute across all BUY signals proportionally to confidence.
-- **SELL signal**: Specify how many units of the held amount to sell and their approximate value in EUR.
-- **HOLD signal**: Confirm to hold current position or adjust stop-loss if needed.`;
+IMPORTANT: The signal for each coin (BUY / SELL / HOLD) must be determined solely by market conditions and technical analysis — NOT by the available budget. The available cash is only context for sizing a BUY if market conditions justify one.
+
+Based on the portfolio above, add a **9. Personalized Action** section for each coin:
+- **If BUY signal**: Specify how much of the €${portfolio.availableCash.toFixed(2)} available cash to deploy (in EUR and approximate units at current price). Only deploy cash if the market analysis genuinely supports buying — do not force a BUY just because cash is available.
+- **If SELL signal**: Specify how many units of the held amount to sell and their approximate value in EUR.
+- **If HOLD signal**: Confirm to hold current position or adjust stop-loss if needed.`;
   }
 
   const horizonLabel = portfolio?.horizon === 'long' ? 'LONG-TERM' : 'SHORT-TERM';

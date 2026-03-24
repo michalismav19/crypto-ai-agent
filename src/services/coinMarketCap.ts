@@ -20,6 +20,7 @@ async function getQuotes(): Promise<CMCQuotesMap> {
     {
       headers: apiHeaders(),
       params: { symbol: SYMBOLS.join(','), convert: 'USD' },
+      timeout: 10_000,
     },
   );
   return response.data.data;
@@ -37,6 +38,7 @@ async function getOHLCV(symbol: CryptoSymbol): Promise<CMCOHLCVData | null> {
       {
         headers: apiHeaders(),
         params: { symbol, time_period: 'daily', count: 30, convert: 'USD' },
+        timeout: 10_000,
       },
     );
     return response.data.data;
@@ -61,6 +63,7 @@ async function getEurRate(): Promise<number> {
   try {
     const res = await axios.get<{ rates: { EUR: number } }>(
       'https://api.frankfurter.app/latest?from=USD&to=EUR',
+      { timeout: 5_000 },
     );
     return res.data.rates.EUR;
   } catch {
@@ -77,6 +80,7 @@ async function getFearAndGreed(): Promise<FearAndGreed> {
   try {
     const res = await axios.get<{ data: Array<{ value: string; value_classification: string }> }>(
       'https://api.alternative.me/fng/',
+      { timeout: 5_000 },
     );
     const entry = res.data.data[0];
     return { value: parseInt(entry.value, 10), classification: entry.value_classification };
@@ -94,7 +98,7 @@ async function getBtcDominance(): Promise<number> {
   try {
     const res = await axios.get<{ data: { btc_dominance: number } }>(
       `${BASE_URL}/v1/global-metrics/quotes/latest`,
-      { headers: apiHeaders() },
+      { headers: apiHeaders(), timeout: 10_000 },
     );
     return res.data.data.btc_dominance;
   } catch {

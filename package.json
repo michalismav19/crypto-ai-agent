@@ -15,10 +15,10 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
-    "@aws-sdk/client-ses": "^3.1013.0",
+    "@aws-sdk/client-ses": "^3.1015.0",
     "axios": "^1.7.9",
     "dotenv": "^16.4.7",
-    "nodemailer": "^6.9.16"
+    "nodemailer": "^8.0.3"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.161",

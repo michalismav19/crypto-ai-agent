@@ -16,9 +16,9 @@ export async function runAnalysis(portfolio?: Portfolio): Promise<void> {
   console.log(`\n[${runId}] ── Starting crypto analysis run ──`);
 
   try {
-    const { quotes, ohlcvData, eurRate } = await getCryptoData(); // call coinMarketCap API
+    const marketData = await getCryptoData(); // call coinMarketCap API
     console.log("[Scheduler] Market data fetched");
-    const analysis = await analyzeMarket(quotes, ohlcvData, eurRate, portfolio); // call Claude API
+    const analysis = await analyzeMarket(marketData, portfolio); // call Claude API
     console.log("[Scheduler] Analysis complete");
     console.log("\n── Analysis Result ──\n");
     console.log(analysis);

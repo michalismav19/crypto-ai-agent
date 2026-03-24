@@ -1,5 +1,5 @@
 import axios, { AxiosError } from 'axios';
-import type { CMCQuotesMap, CMCOHLCVData, OHLCVMap, CryptoMarketData } from '../types';
+import type { CMCQuotesMap, CMCOHLCVData, OHLCVMap, CryptoMarketData, FearAndGreed } from '../types';
 
 const BASE_URL = 'https://pro-api.coinmarketcap.com';
 
@@ -70,22 +70,61 @@ async function getEurRate(): Promise<number> {
 }
 
 /**
- * Main data fetch — returns quotes + OHLCV (if available on the current plan)
- * plus the live USD/EUR exchange rate.
+ * Fetch the Crypto Fear & Greed Index from the free alternative.me API.
+ * Falls back to neutral (50) if the request fails.
+ */
+async function getFearAndGreed(): Promise<FearAndGreed> {
+  try {
+    const res = await axios.get<{ data: Array<{ value: string; value_classification: string }> }>(
+      'https://api.alternative.me/fng/',
+    );
+    const entry = res.data.data[0];
+    return { value: parseInt(entry.value, 10), classification: entry.value_classification };
+  } catch {
+    console.warn('[FearAndGreed] Could not fetch index — falling back to neutral');
+    return { value: 50, classification: 'Neutral' };
+  }
+}
+
+/**
+ * Fetch BTC market-cap dominance from CMC global metrics.
+ * Available on all CMC plans. Falls back to 0 on error.
+ */
+async function getBtcDominance(): Promise<number> {
+  try {
+    const res = await axios.get<{ data: { btc_dominance: number } }>(
+      `${BASE_URL}/v1/global-metrics/quotes/latest`,
+      { headers: apiHeaders() },
+    );
+    return res.data.data.btc_dominance;
+  } catch {
+    console.warn('[CoinMarketCap] Could not fetch BTC dominance — falling back to 0');
+    return 0;
+  }
+}
+
+/**
+ * Main data fetch — returns quotes + OHLCV (if available on the current plan),
+ * live USD/EUR rate, BTC dominance, and the Fear & Greed Index.
+ * All independent requests run in parallel.
  */
 export async function getCryptoData(): Promise<CryptoMarketData> {
-  console.log('[CoinMarketCap] Fetching quotes...');
-  const quotes = await getQuotes();
+  console.log('[CoinMarketCap] Fetching market data...');
 
-  console.log('[CoinMarketCap] Fetching OHLCV history...');
-  const ohlcvData: OHLCVMap = {};
-  for (const symbol of SYMBOLS) {
-    ohlcvData[symbol] = await getOHLCV(symbol);
-  }
+  const [quotes, ohlcvResults, eurRate, fearAndGreed, btcDominance] = await Promise.all([
+    getQuotes(),
+    Promise.all(SYMBOLS.map(s => getOHLCV(s))),
+    getEurRate(),
+    getFearAndGreed(),
+    getBtcDominance(),
+  ]);
 
-  console.log('[FX] Fetching EUR/USD rate...');
-  const eurRate = await getEurRate();
+  const ohlcvData: OHLCVMap = Object.fromEntries(
+    SYMBOLS.map((s, i) => [s, ohlcvResults[i]]),
+  );
+
   console.log(`[FX] 1 USD = ${eurRate.toFixed(4)} EUR`);
+  console.log(`[Market] BTC dominance: ${btcDominance.toFixed(1)}% | Fear & Greed: ${fearAndGreed.value} (${fearAndGreed.classification})`);
 
-  return { quotes, ohlcvData, eurRate };
+  return { quotes, ohlcvData, eurRate, btcDominance, fearAndGreed };
 }

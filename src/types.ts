@@ -55,10 +55,17 @@ export type OHLCVMap = Record<string, CMCOHLCVData | null>;
 
 export type Signal = 'BUY' | 'SELL' | 'HOLD';
 
+export interface FearAndGreed {
+  value: number;          // 0 (extreme fear) – 100 (extreme greed)
+  classification: string; // e.g. "Greed", "Fear", "Neutral"
+}
+
 export interface CryptoMarketData {
   quotes: CMCQuotesMap;
   ohlcvData: OHLCVMap;
-  eurRate: number; // 1 USD = eurRate EUR
+  eurRate: number;        // 1 USD = eurRate EUR
+  btcDominance: number;   // BTC market-cap dominance %
+  fearAndGreed: FearAndGreed;
 }
 
 export interface Portfolio {

@@ -1,11 +1,8 @@
 import { getCryptoData } from "./services/coinMarketCap";
 import { analyzeMarket } from "./services/analyzer";
 import { sendNotification } from "./services/notifier";
+import { config } from "./config";
 import type { Portfolio } from "./types";
-
-const EMAIL_ENV_VARS = ["EMAIL_FROM", "EMAIL_TO"] as const;
-
-const isProd = process.env.NODE_ENV === "production";
 
 /**
  * Single analysis run: fetch market data → analyze with Claude → send email.
@@ -24,14 +21,14 @@ export async function runAnalysis(portfolio?: Portfolio): Promise<void> {
     console.log(analysis);
     console.log("\n─────────────────────\n");
 
-    const emailReady = EMAIL_ENV_VARS.every((k) => !!process.env[k]);
+    const emailReady = !!(config.email.from && config.email.to);
 
-    if (!emailReady || !isProd) {
+    if (!emailReady || !config.isProd) {
       console.log(
         "[Notifier] Email env vars not set — skipping email notification.",
       );
     }
-    if (emailReady && isProd) {
+    if (emailReady && config.isProd) {
       await sendNotification(analysis); // send email notification
     }
     console.log(`[${runId}] ── Run complete ──\n`);

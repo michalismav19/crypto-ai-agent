@@ -2,74 +2,27 @@ import Anthropic from "@anthropic-ai/sdk";
 import type {
   CMCCoinData,
   CMCOHLCVData,
+  CMCQuotesMap,
   CryptoMarketData,
   Portfolio,
 } from "../types";
+import { config } from "../config";
+import { OHLCV_DAY_COUNT } from "./coinMarketCap";
+import {
+  BB_PERIOD,
+  MACD_FAST,
+  MACD_SIGNAL_PERIOD,
+  MACD_SLOW,
+  RSI_PERIOD,
+  calcBB,
+  calcMACD,
+  calcRSI,
+} from "./indicators";
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const client = new Anthropic({ apiKey: config.anthropicApiKey });
 
-// ─── Technical indicator helpers ──────────────────────────────────────────────
-
-function calcEMA(values: number[], period: number): number[] {
-  const k = 2 / (period + 1);
-  const ema: number[] = [];
-  for (let i = 0; i < values.length; i++) {
-    if (i < period - 1) {
-      ema.push(NaN);
-      continue;
-    }
-    if (i === period - 1) {
-      ema.push(values.slice(0, period).reduce((a, b) => a + b, 0) / period);
-      continue;
-    }
-    ema.push(values[i] * k + ema[i - 1] * (1 - k));
-  }
-  return ema;
-}
-
-function calcRSI(closes: number[], period = 14): number {
-  if (closes.length < period + 1) return 50;
-  const changes = closes.slice(1).map((c, i) => c - closes[i]);
-  const gains = changes.map((c) => (c > 0 ? c : 0));
-  const losses = changes.map((c) => (c < 0 ? -c : 0));
-  let avgGain = gains.slice(0, period).reduce((a, b) => a + b, 0) / period;
-  let avgLoss = losses.slice(0, period).reduce((a, b) => a + b, 0) / period;
-  for (let i = period; i < changes.length; i++) {
-    avgGain = (avgGain * (period - 1) + gains[i]) / period;
-    avgLoss = (avgLoss * (period - 1) + losses[i]) / period;
-  }
-  if (avgLoss === 0) return 100;
-  return 100 - 100 / (1 + avgGain / avgLoss);
-}
-
-function calcMACD(closes: number[]): { macd: number; signal: number; histogram: number } {
-  const ema12 = calcEMA(closes, 12);
-  const ema26 = calcEMA(closes, 26);
-  const macdLine = ema12.map((v, i) =>
-    !isNaN(v) && !isNaN(ema26[i]) ? v - ema26[i] : NaN,
-  );
-  const validMacd = macdLine.filter((v) => !isNaN(v));
-  if (validMacd.length < 9) return { macd: 0, signal: 0, histogram: 0 };
-  const signalLine = calcEMA(validMacd, 9);
-  const lastMacd = validMacd[validMacd.length - 1];
-  const lastSignal = signalLine[signalLine.length - 1];
-  return { macd: lastMacd, signal: lastSignal, histogram: lastMacd - lastSignal };
-}
-
-function calcBB(
-  closes: number[],
-  period = 20,
-): { upper: number; middle: number; lower: number; pctB: number } {
-  const slice = closes.slice(-period);
-  const sma = slice.reduce((a, b) => a + b, 0) / period;
-  const variance = slice.reduce((sum, v) => sum + (v - sma) ** 2, 0) / period;
-  const stdDev = Math.sqrt(variance);
-  const upper = sma + 2 * stdDev;
-  const lower = sma - 2 * stdDev;
-  const current = closes[closes.length - 1];
-  const pctB = upper === lower ? 0.5 : (current - lower) / (upper - lower);
-  return { upper, middle: sma, lower, pctB };
-}
+const SYSTEM_PROMPT =
+  "You are a senior cryptocurrency analyst with 10+ years of hands-on experience in technical analysis, on-chain metrics, and macro crypto market cycles. You produce clear, direct, actionable reports. Never hedge everything — commit to a signal and back it with evidence.";
 
 // ─── Prompt builders ──────────────────────────────────────────────────────────
 
@@ -84,7 +37,7 @@ function pct(value: number | null, decimals = 2): string {
  */
 function formatIndicators(ohlcv: CMCOHLCVData | null, currentPrice: number): string {
   const candles = ohlcv?.quotes;
-  if (!candles || candles.length < 20) {
+  if (!candles || candles.length < BB_PERIOD) {
     return "(Insufficient candle data — base analysis on percentage changes above)";
   }
 
@@ -102,15 +55,16 @@ function formatIndicators(ohlcv: CMCOHLCVData | null, currentPrice: number): str
   const bbPos = pctB > 0.8 ? "near upper band" : pctB < 0.2 ? "near lower band" : "mid-range";
 
   const pricVsSma = ((currentPrice - middle) / middle) * 100;
-  const smaRel = pricVsSma >= 0
-    ? `+${pricVsSma.toFixed(1)}% above SMA20`
-    : `${pricVsSma.toFixed(1)}% below SMA20`;
+  const smaRel =
+    pricVsSma >= 0
+      ? `+${pricVsSma.toFixed(1)}% above SMA${BB_PERIOD}`
+      : `${pricVsSma.toFixed(1)}% below SMA${BB_PERIOD}`;
 
   return [
-    `RSI(14)       : ${rsi.toFixed(1)} (${rsiLabel})`,
-    `MACD(12,26,9) : MACD ${macd.toFixed(2)}, Signal ${signal.toFixed(2)}, Hist ${histogram.toFixed(2)} (${macdTrend})`,
-    `Bollinger(20) : Upper ${fmt(upper)} | Mid ${fmt(middle)} | Lower ${fmt(lower)} | %B ${pctB.toFixed(2)} (${bbPos})`,
-    `SMA20         : ${fmt(middle)} — current price ${smaRel}`,
+    `RSI(${RSI_PERIOD})       : ${rsi.toFixed(1)} (${rsiLabel})`,
+    `MACD(${MACD_FAST},${MACD_SLOW},${MACD_SIGNAL_PERIOD}) : MACD ${macd.toFixed(2)}, Signal ${signal.toFixed(2)}, Hist ${histogram.toFixed(2)} (${macdTrend})`,
+    `Bollinger(${BB_PERIOD}) : Upper ${fmt(upper)} | Mid ${fmt(middle)} | Lower ${fmt(lower)} | %B ${pctB.toFixed(2)} (${bbPos})`,
+    `SMA${BB_PERIOD}         : ${fmt(middle)} — current price ${smaRel}`,
   ].join("\n");
 }
 
@@ -137,53 +91,51 @@ function buildCoinSection(
     `24h Volume    : $${(q.volume_24h / 1e9).toFixed(2)}B`,
     `Vol/MCap Ratio: ${((q.volume_24h / q.market_cap) * 100).toFixed(2)}%`,
     "",
-    "Technical Indicators (computed from 30-day daily candles):",
+    `Technical Indicators (computed from ${OHLCV_DAY_COUNT}-day daily candles):`,
     formatIndicators(ohlcv, q.price),
   ].join("\n");
 }
 
-/**
- * Call Claude to produce a full analyst report.
- * Pre-computed indicators replace raw OHLCV tables, saving ~1900 input
- * tokens per run while preserving (and improving) analysis quality.
- */
-export async function analyzeMarket(
-  { quotes, ohlcvData, eurRate, btcDominance, fearAndGreed }: CryptoMarketData,
-  portfolio?: Portfolio,
-): Promise<string> {
-  const coins = Object.keys(quotes);
-  const coinSections = Object.entries(quotes)
-    .map(([symbol, coinData]) =>
-      buildCoinSection(symbol, coinData, ohlcvData[symbol] ?? null, eurRate),
-    )
-    .join("\n\n");
+// ─── analyzeMarket helpers ────────────────────────────────────────────────────
 
-  const today = new Date().toISOString().split("T")[0];
-  const horizonLabel = portfolio?.horizon === "long" ? "LONG-TERM" : "SHORT-TERM";
-  const horizonContext =
-    portfolio?.horizon === "long"
-      ? `The user is a LONG-TERM investor (weeks to months).
+function buildHorizonContext(horizon: "short" | "long" | undefined): {
+  label: string;
+  context: string;
+} {
+  if (horizon === "long") {
+    return {
+      label: "LONG-TERM",
+      context: `The user is a LONG-TERM investor (weeks to months).
 - Weight 30-day, 60-day, and 90-day trends heavily.
 - Ignore intraday noise; focus on macro trend, accumulation patterns, and fundamental strength.
-- Stop-loss and take-profit targets should reflect multi-week price targets.`
-      : `The user is a SHORT-TERM trader (hours to a few days).
+- Stop-loss and take-profit targets should reflect multi-week price targets.`,
+    };
+  }
+  return {
+    label: "SHORT-TERM",
+    context: `The user is a SHORT-TERM trader (hours to a few days).
 - Weight 1-hour and 24-hour price action heavily.
 - Focus on momentum, volume confirmation, and short-term support/resistance.
-- Stop-loss and take-profit targets should be tight and reflect near-term price action.`;
+- Stop-loss and take-profit targets should be tight and reflect near-term price action.`,
+  };
+}
 
-  let portfolioSection = "";
-  if (portfolio) {
-    const holdingLines = Object.entries(quotes)
-      .map(([symbol, coinData]) => {
-        const amount = portfolio.holdings[symbol] ?? 0;
-        const priceUsd = coinData.quote.USD.price;
-        const valueUsd = amount * priceUsd;
-        const valueEur = valueUsd * eurRate;
-        return `  ${symbol}: ${amount} units  ($${valueUsd.toFixed(2)} / €${valueEur.toFixed(2)})`;
-      })
-      .join("\n");
+function buildPortfolioSection(
+  portfolio: Portfolio,
+  quotes: CMCQuotesMap,
+  eurRate: number,
+): string {
+  const holdingLines = Object.entries(quotes)
+    .map(([symbol, coinData]) => {
+      const amount = portfolio.holdings[symbol] ?? 0;
+      const priceUsd = coinData.quote.USD.price;
+      const valueUsd = amount * priceUsd;
+      const valueEur = valueUsd * eurRate;
+      return `  ${symbol}: ${amount} units  ($${valueUsd.toFixed(2)} / €${valueEur.toFixed(2)})`;
+    })
+    .join("\n");
 
-    portfolioSection = `
+  return `
 ---
 
 ## YOUR PORTFOLIO
@@ -201,12 +153,21 @@ Based on the portfolio above, add a **9. Personalized Action** section for each 
 - **If BUY signal**: Specify how much of the €${portfolio.availableCash.toFixed(2)} available cash to deploy (in EUR and approximate units at current price). Only deploy cash if the market analysis genuinely supports buying — do not force a BUY just because cash is available.
 - **If SELL signal**: Specify how many units of the held amount to sell and their approximate value in EUR.
 - **If HOLD signal**: Confirm to hold current position or adjust stop-loss if needed.`;
-  }
+}
 
-  const systemPrompt = `You are a senior cryptocurrency analyst with 10+ years of hands-on experience in technical analysis, on-chain metrics, and macro crypto market cycles. You produce clear, direct, actionable reports. Never hedge everything — commit to a signal and back it with evidence.`;
+function buildUserPrompt(
+  { quotes, btcDominance, fearAndGreed }: CryptoMarketData,
+  portfolio: Portfolio | undefined,
+  coinSections: string,
+  label: string,
+  horizonContext: string,
+  portfolioSection: string,
+): string {
+  const today = new Date().toISOString().split("T")[0];
+  const coins = Object.keys(quotes);
 
-  const userPrompt = `Today's date: ${today}
-Investment horizon: **${horizonLabel}**
+  return `Today's date: ${today}
+Investment horizon: **${label}**
 
 ${horizonContext}
 
@@ -222,7 +183,7 @@ ${portfolioSection}
 
 For EACH of the ${coins.length} coins (${coins.join(", ")}), provide:
 
-1. **SIGNAL**: BUY 🟢 | SELL 🔴 | HOLD 🟡  (be decisive — pick one, aligned with the ${horizonLabel} horizon)
+1. **SIGNAL**: BUY 🟢 | SELL 🔴 | HOLD 🟡  (be decisive — pick one, aligned with the ${label} horizon)
 2. **Timing** ⏰: When exactly to act — choose the most appropriate:
    - BUY NOW / BUY TODAY / BUY TOMORROW / WAIT FOR PULLBACK THEN BUY (specify price level)
    - SELL NOW / SELL TODAY / SELL TOMORROW / WAIT FOR BOUNCE THEN SELL (specify price level)
@@ -230,31 +191,68 @@ For EACH of the ${coins.length} coins (${coins.join(", ")}), provide:
    Give a concrete date or price trigger, not just a vague suggestion.
 3. **Confidence**: High / Medium / Low
 4. **Risk Level**: High / Medium / Low
-5. **Key Technical Observations** (${horizonLabel} focus):
+5. **Key Technical Observations** (${label} focus):
    - Trend direction (short-term & mid-term)
    - Momentum (accelerating / decelerating / reversing)
    - Volume analysis (confirming or diverging)
    - Notable support / resistance levels
-6. **Reasoning**: 2-4 sentences explaining why you chose this signal and timing for a ${horizonLabel} perspective
-7. **Stop-Loss suggestion**: price level to exit if wrong (in USD and EUR, ${horizonLabel} appropriate)
-8. **Target / Take-Profit**: price level if signal plays out (in USD and EUR, ${horizonLabel} appropriate)${portfolio ? "\n9. **Personalized Action**: specific buy/sell recommendation based on your portfolio (see above)" : ""}
+6. **Reasoning**: 2-4 sentences explaining why you chose this signal and timing for a ${label} perspective
+7. **Stop-Loss suggestion**: price level to exit if wrong (in USD and EUR, ${label} appropriate)
+8. **Target / Take-Profit**: price level if signal plays out (in USD and EUR, ${label} appropriate)${portfolio ? "\n9. **Personalized Action**: specific buy/sell recommendation based on your portfolio (see above)" : ""}
 
 After the individual coin sections, add a brief **Market Summary** (3-5 sentences) covering:
-- Overall market sentiment (reference the Fear & Greed Index and BTC dominance) from a ${horizonLabel} perspective
+- Overall market sentiment (reference the Fear & Greed Index and BTC dominance) from a ${label} perspective
 - Any correlations or divergences between the coins
 - Top risk to watch
 
 Format the report clearly with headers. Be direct and actionable.`;
+}
 
+async function callClaude(userPrompt: string): Promise<string> {
   console.log("[Analyzer] Sending data to Claude (this may take 30-60s)...");
   const response = await client.messages.create({
     model: "claude-opus-4-6",
     max_tokens: 4096,
-    system: systemPrompt,
+    system: SYSTEM_PROMPT,
     messages: [{ role: "user", content: userPrompt }],
   });
   return response.content
     .filter((b): b is Anthropic.TextBlock => b.type === "text")
     .map((b) => b.text)
     .join("");
+}
+
+// ─── Public API ───────────────────────────────────────────────────────────────
+
+/**
+ * Call Claude to produce a full analyst report.
+ * Pre-computed indicators replace raw OHLCV tables, saving ~1900 input
+ * tokens per run while preserving (and improving) analysis quality.
+ */
+export async function analyzeMarket(
+  marketData: CryptoMarketData,
+  portfolio?: Portfolio,
+): Promise<string> {
+  const { quotes, ohlcvData, eurRate } = marketData;
+
+  const coinSections = Object.entries(quotes)
+    .map(([symbol, coinData]) =>
+      buildCoinSection(symbol, coinData, ohlcvData[symbol] ?? null, eurRate),
+    )
+    .join("\n\n");
+
+  const { label, context: horizonContext } = buildHorizonContext(portfolio?.horizon);
+  const portfolioSection = portfolio
+    ? buildPortfolioSection(portfolio, quotes, eurRate)
+    : "";
+  const userPrompt = buildUserPrompt(
+    marketData,
+    portfolio,
+    coinSections,
+    label,
+    horizonContext,
+    portfolioSection,
+  );
+
+  return callClaude(userPrompt);
 }

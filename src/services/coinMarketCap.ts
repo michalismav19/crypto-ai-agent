@@ -1,14 +1,19 @@
 import axios, { AxiosError } from 'axios';
 import type { CMCQuotesMap, CMCOHLCVData, OHLCVMap, CryptoMarketData, FearAndGreed } from '../types';
+import { config } from '../config';
 
 const BASE_URL = 'https://pro-api.coinmarketcap.com';
 
 export const SYMBOLS = ['BTC', 'ETH', 'XRP', 'SOL'] as const;
 export type CryptoSymbol = (typeof SYMBOLS)[number];
 
-function apiHeaders(): Record<string, string> {
-  return { 'X-CMC_PRO_API_KEY': process.env.COIN_MAKRET_CAP_API_KEY ?? '' };
-}
+export const OHLCV_DAY_COUNT = 30;
+
+const CMC_TIMEOUT_MS = 10_000;
+const EXTERNAL_API_TIMEOUT_MS = 5_000;
+const FALLBACK_EUR_RATE = 0.92;
+
+const API_HEADERS = { 'X-CMC_PRO_API_KEY': config.cmcApiKey };
 
 /**
  * Fetch latest quotes for BTC, ETH, XRP, SOL.
@@ -18,9 +23,9 @@ async function getQuotes(): Promise<CMCQuotesMap> {
   const response = await axios.get<{ data: CMCQuotesMap }>(
     `${BASE_URL}/v1/cryptocurrency/quotes/latest`,
     {
-      headers: apiHeaders(),
+      headers: API_HEADERS,
       params: { symbol: SYMBOLS.join(','), convert: 'USD' },
-      timeout: 10_000,
+      timeout: CMC_TIMEOUT_MS,
     },
   );
   return response.data.data;
@@ -36,9 +41,9 @@ async function getOHLCV(symbol: CryptoSymbol): Promise<CMCOHLCVData | null> {
     const response = await axios.get<{ data: CMCOHLCVData }>(
       `${BASE_URL}/v1/cryptocurrency/ohlcv/historical`,
       {
-        headers: apiHeaders(),
-        params: { symbol, time_period: 'daily', count: 30, convert: 'USD' },
-        timeout: 10_000,
+        headers: API_HEADERS,
+        params: { symbol, time_period: 'daily', count: OHLCV_DAY_COUNT, convert: 'USD' },
+        timeout: CMC_TIMEOUT_MS,
       },
     );
     return response.data.data;
@@ -63,12 +68,12 @@ async function getEurRate(): Promise<number> {
   try {
     const res = await axios.get<{ rates: { EUR: number } }>(
       'https://api.frankfurter.app/latest?from=USD&to=EUR',
-      { timeout: 5_000 },
+      { timeout: EXTERNAL_API_TIMEOUT_MS },
     );
     return res.data.rates.EUR;
   } catch {
-    console.warn('[FX] Could not fetch EUR rate — falling back to 0.92');
-    return 0.92;
+    console.warn(`[FX] Could not fetch EUR rate — falling back to ${FALLBACK_EUR_RATE}`);
+    return FALLBACK_EUR_RATE;
   }
 }
 
@@ -80,7 +85,7 @@ async function getFearAndGreed(): Promise<FearAndGreed> {
   try {
     const res = await axios.get<{ data: Array<{ value: string; value_classification: string }> }>(
       'https://api.alternative.me/fng/',
-      { timeout: 5_000 },
+      { timeout: EXTERNAL_API_TIMEOUT_MS },
     );
     const entry = res.data.data[0];
     return { value: parseInt(entry.value, 10), classification: entry.value_classification };
@@ -98,7 +103,7 @@ async function getBtcDominance(): Promise<number> {
   try {
     const res = await axios.get<{ data: { btc_dominance: number } }>(
       `${BASE_URL}/v1/global-metrics/quotes/latest`,
-      { headers: apiHeaders(), timeout: 10_000 },
+      { headers: API_HEADERS, timeout: CMC_TIMEOUT_MS },
     );
     return res.data.data.btc_dominance;
   } catch {

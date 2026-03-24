@@ -1,14 +1,15 @@
 import nodemailer, { Transporter } from 'nodemailer';
 import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
+import { config } from '../config';
 
 function createTransporter(): Transporter {
   return nodemailer.createTransport({
-    host: process.env.EMAIL_SMTP_HOST,
-    port: parseInt(process.env.EMAIL_SMTP_PORT ?? '587', 10),
-    secure: process.env.EMAIL_SMTP_PORT === '465',
+    host: config.email.smtpHost,
+    port: config.email.smtpPort,
+    secure: config.email.smtpPort === 465,
     auth: {
-      user: process.env.EMAIL_SMTP_USER,
-      pass: process.env.EMAIL_SMTP_PASS,
+      user: config.email.smtpUser,
+      pass: config.email.smtpPass,
     },
   });
 }
@@ -67,8 +68,8 @@ function analysisToHtml(analysis: string): string {
 async function sendViaSES(subject: string, text: string, html: string): Promise<void> {
   const client = new SESClient({});
   await client.send(new SendEmailCommand({
-    Source: process.env.EMAIL_FROM,
-    Destination: { ToAddresses: [process.env.EMAIL_TO!] },
+    Source: config.email.from,
+    Destination: { ToAddresses: [config.email.to!] },
     Message: {
       Subject: { Data: subject, Charset: 'UTF-8' },
       Body: {
@@ -77,7 +78,7 @@ async function sendViaSES(subject: string, text: string, html: string): Promise<
       },
     },
   }));
-  console.log(`[Notifier] Email sent via SES to ${process.env.EMAIL_TO}`);
+  console.log(`[Notifier] Email sent via SES to ${config.email.to}`);
 }
 
 /**
@@ -86,13 +87,13 @@ async function sendViaSES(subject: string, text: string, html: string): Promise<
 async function sendViaSMTP(subject: string, text: string, html: string): Promise<void> {
   const transporter = createTransporter();
   await transporter.sendMail({
-    from: `"Crypto AI Agent" <${process.env.EMAIL_FROM}>`,
-    to: process.env.EMAIL_TO,
+    from: `"Crypto AI Agent" <${config.email.from}>`,
+    to: config.email.to,
     subject,
     text,
     html,
   });
-  console.log(`[Notifier] Email sent via SMTP to ${process.env.EMAIL_TO}`);
+  console.log(`[Notifier] Email sent via SMTP to ${config.email.to}`);
 }
 
 /**
@@ -103,7 +104,7 @@ export async function sendNotification(analysis: string): Promise<void> {
   const subject = `Crypto Signal [${new Date().toUTCString()}] — BTC/ETH/XRP/SOL`;
   const html = analysisToHtml(analysis);
 
-  if (process.env.EMAIL_SMTP_HOST) {
+  if (config.email.smtpHost) {
     await sendViaSMTP(subject, analysis, html);
     return;
   }

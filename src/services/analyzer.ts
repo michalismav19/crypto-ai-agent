@@ -16,11 +16,13 @@ function calcEMA(values: number[], period: number): number[] {
   for (let i = 0; i < values.length; i++) {
     if (i < period - 1) {
       ema.push(NaN);
-    } else if (i === period - 1) {
-      ema.push(values.slice(0, period).reduce((a, b) => a + b, 0) / period);
-    } else {
-      ema.push(values[i] * k + ema[i - 1] * (1 - k));
+      continue;
     }
+    if (i === period - 1) {
+      ema.push(values.slice(0, period).reduce((a, b) => a + b, 0) / period);
+      continue;
+    }
+    ema.push(values[i] * k + ema[i - 1] * (1 - k));
   }
   return ema;
 }

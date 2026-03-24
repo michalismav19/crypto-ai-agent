@@ -26,12 +26,13 @@ export async function runAnalysis(portfolio?: Portfolio): Promise<void> {
 
     const emailReady = EMAIL_ENV_VARS.every((k) => !!process.env[k]);
 
-    if (emailReady && isProd) {
-      await sendNotification(analysis); // send email notification
-    } else {
+    if (!emailReady || !isProd) {
       console.log(
         "[Notifier] Email env vars not set — skipping email notification.",
       );
+    }
+    if (emailReady && isProd) {
+      await sendNotification(analysis); // send email notification
     }
     console.log(`[${runId}] ── Run complete ──\n`);
   } catch (err) {

@@ -105,7 +105,8 @@ export async function sendNotification(analysis: string): Promise<void> {
 
   if (process.env.EMAIL_SMTP_HOST) {
     await sendViaSMTP(subject, analysis, html);
-  } else {
-    await sendViaSES(subject, analysis, html);
+    return;
   }
+
+  await sendViaSES(subject, analysis, html);
 }

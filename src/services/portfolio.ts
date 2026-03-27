@@ -1,33 +1,68 @@
-import * as readline from 'readline';
-import type { Portfolio } from '../types';
-import { SYMBOLS } from './coinMarketCap';
+import * as readline from "readline";
+import type { Portfolio } from "../types";
+import { SYMBOLS } from "./coinMarketCap";
+
+// ─── Defaults used when running non-interactively (e.g. cron job) ────────────
+const DEFAULT_PORTFOLIO: Portfolio = {
+  intent: "sell",
+  holdings: { BTC: 0.01, ETH: 0.2, XRP: 100, SOL: 2 },
+  availableCash: 200,
+  targetSellAmountEur: 500,
+  horizon: "short",
+};
 
 function ask(rl: readline.Interface, question: string): Promise<string> {
-  return new Promise(resolve => rl.question(question, resolve));
+  return new Promise((resolve) => rl.question(question, resolve));
 }
 
 /**
  * Interactively prompt the user for their intent (BUY/SELL), holdings, cash/target,
  * and investment horizon.
+ *
+ * When stdin is not a TTY (e.g. cron job / CI), returns DEFAULT_PORTFOLIO
+ * immediately without blocking on input.
  */
 export async function promptPortfolio(): Promise<Portfolio> {
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  if (!process.stdin.isTTY) {
+    console.log(
+      "[Portfolio] Non-interactive mode — using default portfolio (SELL, BTC 0.01 / ETH 0.2 / XRP 100 / SOL 2, target €500, short horizon).",
+    );
+    return DEFAULT_PORTFOLIO;
+  }
 
-  console.log('\n── Crypto AI Agent ──────────────────────────────────────────');
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  console.log(
+    "\n── Crypto AI Agent ──────────────────────────────────────────",
+  );
 
   // ── Step 1: BUY or SELL intent ─────────────────────────────────────────────
-  let intent: 'buy' | 'sell' = 'buy';
+  let intent: "buy" | "sell" = "buy";
   while (true) {
-    const intentAnswer = await ask(rl, '\n  What would you like to do?\n  [B] BUY  — when is the best time to buy?\n  [S] SELL — when is the best time to sell?\n\n  Your choice (B/S): ');
+    const intentAnswer = await ask(
+      rl,
+      "\n  What would you like to do?\n  [B] BUY  — when is the best time to buy?\n  [S] SELL — when is the best time to sell?\n\n  Your choice (B/S): ",
+    );
     const i = intentAnswer.trim().toUpperCase();
-    if (i === 'B' || i === 'BUY')  { intent = 'buy';  break; }
-    if (i === 'S' || i === 'SELL') { intent = 'sell'; break; }
+    if (i === "B" || i === "BUY") {
+      intent = "buy";
+      break;
+    }
+    if (i === "S" || i === "SELL") {
+      intent = "sell";
+      break;
+    }
     console.log('  Please type "B" for Buy or "S" for Sell.');
   }
 
   // ── Step 2: Current holdings ───────────────────────────────────────────────
-  console.log('\n── Your Holdings ────────────────────────────────────────────');
-  console.log('Enter your current holdings (press Enter to skip):\n');
+  console.log(
+    "\n── Your Holdings ────────────────────────────────────────────",
+  );
+  console.log("Enter your current holdings (press Enter to skip):\n");
 
   const holdings: Partial<Record<string, number>> = {};
   for (const symbol of SYMBOLS) {
@@ -40,26 +75,40 @@ export async function promptPortfolio(): Promise<Portfolio> {
   let availableCash = 0;
   let targetSellAmountEur: number | undefined;
 
-  if (intent === 'buy') {
-    const cashAnswer = await ask(rl, '\n  Available cash to invest (EUR): ');
+  if (intent === "buy") {
+    const cashAnswer = await ask(rl, "\n  Available cash to invest (EUR): ");
     availableCash = parseFloat(cashAnswer.trim()) || 0;
   } else {
-    const targetAnswer = await ask(rl, '\n  How much money do you want to get from selling crypto (EUR): ');
+    const targetAnswer = await ask(
+      rl,
+      "\n  How much money do you want to get from selling crypto (EUR): ",
+    );
     targetSellAmountEur = parseFloat(targetAnswer.trim()) || 0;
   }
 
   // ── Step 4: Investment horizon ─────────────────────────────────────────────
-  let horizon: 'short' | 'long' = 'short';
+  let horizon: "short" | "long" = "short";
   while (true) {
-    const horizonAnswer = await ask(rl, '\n  Investment horizon — short or long? (s/l): ');
+    const horizonAnswer = await ask(
+      rl,
+      "\n  Investment horizon — short or long? (s/l): ",
+    );
     const h = horizonAnswer.trim().toLowerCase();
-    if (h === 's' || h === 'short') { horizon = 'short'; break; }
-    if (h === 'l' || h === 'long')  { horizon = 'long';  break; }
+    if (h === "s" || h === "short") {
+      horizon = "short";
+      break;
+    }
+    if (h === "l" || h === "long") {
+      horizon = "long";
+      break;
+    }
     console.log('  Please type "s" for short term or "l" for long term.');
   }
 
   rl.close();
-  console.log('─────────────────────────────────────────────────────────────\n');
+  console.log(
+    "─────────────────────────────────────────────────────────────\n",
+  );
 
   return { holdings, availableCash, targetSellAmountEur, horizon, intent };
 }

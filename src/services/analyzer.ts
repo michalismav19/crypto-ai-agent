@@ -125,15 +125,36 @@ function buildPortfolioSection(
   quotes: CMCQuotesMap,
   eurRate: number,
 ): string {
+  let totalValueEur = 0;
+
   const holdingLines = Object.entries(quotes)
     .map(([symbol, coinData]) => {
       const amount = portfolio.holdings[symbol] ?? 0;
       const priceUsd = coinData.quote.USD.price;
       const valueUsd = amount * priceUsd;
       const valueEur = valueUsd * eurRate;
+      totalValueEur += valueEur;
       return `  ${symbol}: ${amount} units  ($${valueUsd.toFixed(2)} / €${valueEur.toFixed(2)})`;
     })
     .join("\n");
+
+  const isBuy = portfolio.intent === 'buy';
+
+  const intentLine = isBuy
+    ? `Available cash to invest: €${portfolio.availableCash.toFixed(2)}`
+    : `Target amount to receive from selling: €${(portfolio.targetSellAmountEur ?? 0).toFixed(2)}`;
+
+  const personalizedActionGuide = isBuy
+    ? `- **If BUY signal**: Specify how much of the €${portfolio.availableCash.toFixed(2)} available cash to deploy (in EUR and approximate units at current price). Only deploy cash if the market analysis genuinely supports buying — do not force a BUY just because cash is available.
+- **If SELL signal**: Specify how many units of the held amount to sell and their approximate value in EUR.
+- **If HOLD signal**: Confirm to hold current position or adjust stop-loss if needed.`
+    : `- **If SELL signal**: Specify exactly how many units to sell and at what price to meet or exceed the €${(portfolio.targetSellAmountEur ?? 0).toFixed(2)} target. Prioritise coins where the market signal most supports selling.
+- **If BUY signal**: Even though the user wants to sell, note the signal and advise whether it makes sense to delay selling until the coin reaches a better price.
+- **If HOLD signal**: Advise whether waiting would help achieve the €${(portfolio.targetSellAmountEur ?? 0).toFixed(2)} target at a better price.`;
+
+  const intentNote = isBuy
+    ? `IMPORTANT: The signal for each coin (BUY / SELL / HOLD) must be determined solely by market conditions and technical analysis — NOT by the available budget. The available cash is only context for sizing a BUY if market conditions justify one.`
+    : `IMPORTANT: The user's PRIMARY GOAL is to raise €${(portfolio.targetSellAmountEur ?? 0).toFixed(2)} from selling crypto. Their total portfolio is currently worth €${totalValueEur.toFixed(2)}. Focus the analysis on WHEN and WHICH coins to sell to best achieve this target. Signals must still be market-driven — do not recommend selling at a loss if a short wait would yield a significantly better price.`;
 
   return `
 ---
@@ -143,16 +164,15 @@ function buildPortfolioSection(
 Current holdings:
 ${holdingLines}
 
-Available cash to invest: €${portfolio.availableCash.toFixed(2)}
+Total portfolio value: €${totalValueEur.toFixed(2)}
+${intentLine}
 
 ---
 
-IMPORTANT: The signal for each coin (BUY / SELL / HOLD) must be determined solely by market conditions and technical analysis — NOT by the available budget. The available cash is only context for sizing a BUY if market conditions justify one.
+${intentNote}
 
 Based on the portfolio above, add a **9. Personalized Action** section for each coin:
-- **If BUY signal**: Specify how much of the €${portfolio.availableCash.toFixed(2)} available cash to deploy (in EUR and approximate units at current price). Only deploy cash if the market analysis genuinely supports buying — do not force a BUY just because cash is available.
-- **If SELL signal**: Specify how many units of the held amount to sell and their approximate value in EUR.
-- **If HOLD signal**: Confirm to hold current position or adjust stop-loss if needed.`;
+${personalizedActionGuide}`;
 }
 
 function buildUserPrompt(

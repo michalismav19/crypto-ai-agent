@@ -71,8 +71,12 @@ export interface CryptoMarketData {
 export interface Portfolio {
   /** symbol → amount held (e.g. { BTC: 0.5, ETH: 2 }) */
   holdings: Partial<Record<string, number>>;
-  /** available cash to invest, in EUR */
+  /** available cash to invest, in EUR (relevant for BUY intent) */
   availableCash: number;
+  /** how much EUR the user wants to get from selling (relevant for SELL intent) */
+  targetSellAmountEur?: number;
   /** investment horizon chosen by the user */
   horizon: 'short' | 'long';
+  /** user's primary intent for this session */
+  intent: 'buy' | 'sell';
 }

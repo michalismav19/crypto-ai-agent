@@ -10,7 +10,9 @@ import type { Portfolio } from './src/types';
  *   PORTFOLIO_ETH        — units of ETH held
  *   PORTFOLIO_XRP        — units of XRP held
  *   PORTFOLIO_SOL        — units of SOL held
- *   PORTFOLIO_CASH_EUR   — available cash to invest in EUR
+ *   PORTFOLIO_CASH_EUR   — available cash to invest in EUR (for BUY intent)
+ *   PORTFOLIO_SELL_EUR   — target EUR to raise from selling (for SELL intent)
+ *   PORTFOLIO_INTENT     — "buy" or "sell" (defaults to "buy")
  *   PORTFOLIO_HORIZON    — "short" or "long" (defaults to "short")
  *
  * Email env vars (required to receive the report):
@@ -27,14 +29,23 @@ function buildPortfolioFromEnv(): Portfolio | undefined {
   }
 
   const cash = parseFloat(process.env.PORTFOLIO_CASH_EUR ?? '');
+  const sellTarget = parseFloat(process.env.PORTFOLIO_SELL_EUR ?? '');
+  const intent = process.env.PORTFOLIO_INTENT === 'sell' ? 'sell' : 'buy';
   const horizon = process.env.PORTFOLIO_HORIZON === 'long' ? 'long' : 'short';
 
   const hasHoldings = Object.keys(holdings).length > 0;
   const hasCash = !isNaN(cash) && cash > 0;
+  const hasSellTarget = !isNaN(sellTarget) && sellTarget > 0;
 
-  if (!hasHoldings && !hasCash) return undefined;
+  if (!hasHoldings && !hasCash && !hasSellTarget) return undefined;
 
-  return { holdings, availableCash: isNaN(cash) ? 0 : cash, horizon };
+  return {
+    holdings,
+    availableCash: isNaN(cash) ? 0 : cash,
+    targetSellAmountEur: hasSellTarget ? sellTarget : undefined,
+    horizon,
+    intent,
+  };
 }
 
 export const handler: Handler = async (_event) => {

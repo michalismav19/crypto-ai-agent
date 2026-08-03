@@ -17,6 +17,7 @@
   "include": [
     "index.ts",
     "lambda.ts",
+    "chat.ts",
     "src/**/*.ts"
   ],
   "exclude": [

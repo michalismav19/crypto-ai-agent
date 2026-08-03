@@ -35,7 +35,7 @@ function pct(value: number | null, decimals = 2): string {
  * This saves ~400-500 input tokens per coin while giving Claude
  * verified numbers instead of raw candles to infer from.
  */
-function formatIndicators(ohlcv: CMCOHLCVData | null, currentPrice: number): string {
+export function formatIndicators(ohlcv: CMCOHLCVData | null, currentPrice: number): string {
   const candles = ohlcv?.quotes;
   if (!candles || candles.length < BB_PERIOD) {
     return "(Insufficient candle data — base analysis on percentage changes above)";

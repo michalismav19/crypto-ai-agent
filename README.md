@@ -4,10 +4,21 @@ This is a repo that has a Scheduler (cron / cloud scheduler) that call Crypto ma
 
 ## Package script
 
-yarn start # ts-node index.ts (local scheduler + runs immediately)
-yarn start:once # single analysis run (good for testing)
-yarn build # tsc → dist/ (for production / Lambda)
-yarn start:prod # node dist/index.js (after build)
+- yarn start # ts-node index.ts (local scheduler + runs immediately)
+- yarn start:once # single analysis run (good for testing)
+- yarn start:chat # interactive chat with the Claude Agent SDK (local only, see below)
+- yarn build # tsc → dist/ (for production / Lambda)
+- yarn start:prod # node dist/index.js (after build)
+
+## Chat Mode (Claude Agent SDK)
+
+`yarn start:chat` starts a local, interactive chat session with a crypto analyst agent, separate from the hourly email pipeline. Instead of one fixed prompt built from pre-fetched data, it gives Claude two tools — `get_market_data` (live prices + RSI/MACD/Bollinger indicators) and `get_portfolio` (your holdings/cash/target for this session) — and lets it decide when to call them across a multi-turn conversation. Good for ad-hoc questions ("how does XRP look this week", "should I rebalance") that don't fit the fixed hourly report.
+
+Built with `@anthropic-ai/claude-agent-sdk` (`src/agent/`), reusing the existing market data and indicator services — no analysis logic is duplicated. Uses the same `ANTHROPIC_API_KEY` as the main pipeline. Local/CLI only — not wired into the Lambda deployment.
+
+### MCP Tools (`src/agent/tools.ts`)
+
+Two read-only tools, no Bash/file/web access — `get_market_data` (live prices, % changes, market cap/volume, RSI/MACD/Bollinger — same data as the hourly pipeline) and `get_portfolio` (this session's holdings, cash/target, horizon). No inputs; both just return text.
 
 ## App Versions
 

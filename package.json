@@ -10,15 +10,18 @@
   "scripts": {
     "start": "ts-node index.ts",
     "start:once": "ts-node run-once.ts",
+    "start:chat": "ts-node chat.ts",
     "build": "tsc",
     "start:prod": "node dist/index.js"
   },
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.3.220",
     "@anthropic-ai/sdk": "^0.78.0",
     "@aws-sdk/client-ses": "^3.1015.0",
     "axios": "^1.7.9",
     "dotenv": "^16.4.7",
-    "nodemailer": "^8.0.3"
+    "nodemailer": "^8.0.3",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.161",

@@ -16,9 +16,11 @@ This is a repo that has a Scheduler (cron / cloud scheduler) that call Crypto ma
 
 Built with `@anthropic-ai/claude-agent-sdk` (`src/agent/`), reusing the existing market data and indicator services — no analysis logic is duplicated. Uses the same `ANTHROPIC_API_KEY` as the main pipeline. Local/CLI only — not wired into the Lambda deployment.
 
-### MCP Tools (`src/agent/tools.ts`)
+### MCP Tools
 
-Two read-only tools, no Bash/file/web access — `get_market_data` (live prices, % changes, market cap/volume, RSI/MACD/Bollinger — same data as the hourly pipeline) and `get_portfolio` (this session's holdings, cash/target, horizon). No inputs; both just return text.
+Two read-only local tools (`src/agent/tools.ts`), no Bash/file/web access — `get_market_data` (live prices, % changes, market cap/volume, RSI/MACD/Bollinger — same data as the hourly pipeline) and `get_portfolio` (this session's holdings, cash/target, horizon).
+
+Plus CoinMarketCap's official hosted MCP server (`mcp.coinmarketcap.com`), added for anything the two local tools don't cover — other coins, news, trending narratives, macro events, global/derivatives data. Reuses `COIN_MAKRET_CAP_API_KEY`; skipped automatically if that key isn't set.
 
 ## App Versions
 
